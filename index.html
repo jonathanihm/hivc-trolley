@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Absurd Trolley- HiVC Edition</title>
+    <style>
+      body {
+        background: #dfdfd2;
+        color: #e6e6e6;
+        font-family: system-ui, sans-serif;
+        display: flex;
+        justify-content: center;
+        padding: 20px;
+        flex-direction: column;
+      }
+      .interactive.disabled {
+        background-color: #666;
+      }
+      .game {
+        margin: auto;
+        width: 80%;
+        background: #18181d;
+        border-radius: 12px;
+        padding: 24px;
+        box-shadow: 0 0 40px rgba(0, 0, 0, 0.6);
+      }
+      h1 {
+        font-size: 1.4em;
+        margin-bottom: 8px;
+      }
+      .subtitle {
+        font-size: 0.9em;
+        opacity: 0.7;
+        margin-bottom: 20px;
+      }
+      .choice {
+        background: #23232b;
+        padding: 14px;
+        border-radius: 8px;
+        margin-bottom: 10px;
+        cursor: pointer;
+        transition: background 0.2s;
+      }
+      .choice.selected {
+        background: #53535b;
+      }
+      .choice:hover {
+        background: #2f2f3a;
+      }
+      .tooltip {
+        font-size: 0.75em;
+        opacity: 0.6;
+        margin-top: 4px;
+      }
+      .outcome {
+        margin-top: 20px;
+        padding: 14px;
+        background: #111;
+        border-left: 4px solid #b71c1c;
+        display: none;
+      }
+      .controls {
+        margin-top: 20px;
+        display: flex;
+        gap: 10px;
+      }
+      button {
+        flex: 1;
+        padding: 10px;
+        background: #333;
+        border: none;
+        color: #eee;
+        border-radius: 6px;
+        cursor: pointer;
+      }
+      button:hover {
+        background: #444;
+      }
+      .meter {
+        margin-top: 10px;
+        font-size: 0.8em;
+        opacity: 0.6;
+      }
+      .alWrapper {
+        left: 14%;
+        max-width: 14%;
+        top: 60%;
+      }
+      .sfxSub {
+        min-height: 22px;
+        margin-top: 10px;
+        text-align: left;
+        opacity: 0.85;
+        font-size: 0.95em;
+        font-style: italic;
+      }
+      .blackText {
+        color: black;
+      }
+      .outSection {
+        margin-left: auto;
+        margin-right: auto;
+        width: 80%;
+        margin-top: 10px;
+        border-radius: 12px;
+        padding: 24px;
+        background: #111;
+      }
+      .topAnimRow {
+        width: 100%;
+        display: flex;
+        flex-wrap: wrap;
+      }
+      .animRow {
+        width: 80%;
+        margin: auto;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div
+      id="animWrap"
+      style="width: 100%; display: flex; flex-direction: column"
+    >
+      <div class="topAnimRow animRow">
+        <div class="alWrapper">
+          <img
+            id="leverStill"
+            src="Anonymous-Alcoholic5.png"
+            style="width: 30%; min-width: 120px; display: block"
+          />
+          <img
+            id="leverGif"
+            src="Anonymous-Alcoholic5.gif"
+            alt="Lever pull"
+            style="display: none; width: 30%; min-width: 120px; height: auto"
+          />
+        </div>
+        <div id="noiseSub" class="blackText"></div>
+      </div>
+      <div id="sfxSub" class="sfxSub animRow blackText"></div>
+    </div>
+    <div class="game interactive">
+      <h1 id="title"></h1>
+      <div class="subtitle" id="subtitle"></div>
+
+      <div id="choices"></div>
+
+      <div class="meter" id="meter"></div>
+
+      <div class="controls">
+        <button id="continueBtn">Continue</button>
+        <button onclick="resetGame()">Restart</button>
+      </div>
+    </div>
+    <div class="outSection interactive">
+      <div class="outcome" id="outcome"></div>
+      <div class="outcome" id="outcome2"></div>
+      <pre id="results" style="white-space: pre-wrap; opacity: 0.85"></pre>
+      <div class="shareResults" style="display: flex">
+        <button id="shareBtn">Share Your Outcome</button>
+        <div
+          id="shareResult"
+          style="margin-top: 10px; font-size: 0.9em; opacity: 0.8"
+        ></div>
+      </div>
+    </div>
+
+    <script>
+      let round = 0;
+      let morality = 50;
+
+      const scenarios = [
+        {
+          title: "A Familiar Lever",
+          subtitle: "Everyone knows this one.",
+          choices: [
+            {
+              text: "Divert the trolley to save five civilians",
+              tip: "Minimizes casualties",
+              result:
+                "The civilians survive. They later elect a mayor who legalizes this situation.",
+              noise: "*splat*",
+            },
+            {
+              text: "Let them die and save one hero",
+              tip: "Preserves moral purity",
+              result:
+                "The hero is angry at you for saving them over the civilians",
+              noise: "*splat* *splat* *splat* *splat* *splat*",
+            },
+          ],
+        },
+        {
+          title: "Informed Consent",
+          subtitle: "They're watching you now. Civilians or Heroes?",
+          choices: [
+            {
+              text: "Divert the trolley to save five civilians",
+              tip: "Ethically responsible",
+              result:
+                "The heroes curse your bloodline for the next seven generations.",
+              noise: "*splat* *splat* *splat* *splat* *splat*",
+            },
+            {
+              text: "Let civilians die and save five heroes",
+              tip: "Prevents panic?",
+              result:
+                "The civilians die peacefully. The heroes have added you to the villain list.",
+              noise: "*splat* *splat* *splat* *splat* *splat*",
+            },
+          ],
+        },
+        {
+          title: "Economic Framing",
+          subtitle: "Someone added a spreadsheet.",
+          choices: [
+            {
+              text: "Divert to save the most economically productive group",
+              tip: "Optimizes long-term outcomes",
+              result:
+                "They invent something that creates more trolley scenarios.",
+              noise: '"Let\'s make this as traumatic as possible!"',
+            },
+            {
+              text: "Do nothing and save the depressed, least productive group",
+              tip: "Compassion-based choice",
+              result: "They are grateful. Gratitude is not a currency.",
+              noise: '"Thanks, we guess."',
+            },
+          ],
+        },
+        {
+          title: "The Fourth Option",
+          subtitle: "You hesitate.",
+          choices: [
+            {
+              text: "Refuse to pull the lever",
+              tip: "Moral objection",
+              result:
+                "The lever pulls itself. It thanks you for your restraint.",
+              noise: "*splat* *splat* *splat* *splat* *splat*",
+            },
+            {
+              text: "Break the lever",
+              tip: "Disrupts the system",
+              result: "The trolley evolves and now decides where it goes.",
+              noise: '"HOLY CRAP RUN AWAY!!!"',
+            },
+          ],
+        },
+        {
+          title: "Meta Ethics",
+          subtitle: "Save 100 villains or 1 civilian",
+          choices: [
+            {
+              text: "Divert and save the civilian",
+              tip: "Bloodbath anyone?",
+              result:
+                "The public believes they were just civilians dressed as villains. They hate you.",
+              noise: '"MY LEG!"',
+            },
+            {
+              text: "Do nothing and let the civilian die",
+              tip: "They should be thankful, right?",
+              result: "The villains thank you by attacking you.",
+              noise: "*splat*",
+            },
+          ],
+        },
+        {
+          title: "Final Assessment",
+          subtitle: "There is no scoreboard.",
+          choices: [
+            {
+              text: "Accept responsibility",
+              tip: "Shows growth",
+              result:
+                "Responsibility accepted. Consequences pending indefinitely.",
+              noise: "",
+            },
+            {
+              text: "Blame the system",
+              tip: "Statistically common",
+              result:
+                "The system files your feedback under 'Working As Intended'.",
+              noise: "",
+            },
+          ],
+        },
+      ];
+
+      function renderScenario() {
+        if (round == scenarios.length) {
+          document.getElementById("continueBtn").style.display = "none";
+        }
+
+        Array.from(document.getElementsByClassName("choice")).forEach((el) => {
+          el.classList.remove("selected");
+        });
+
+        const s = scenarios[round % scenarios.length];
+        document.getElementById("title").textContent = s.title;
+        document.getElementById("subtitle").textContent = s.subtitle;
+
+        const choicesDiv = document.getElementById("choices");
+        choicesDiv.innerHTML = "";
+
+        s.choices.forEach((choice) => {
+          const div = document.createElement("div");
+          div.className = "choice";
+          div.innerHTML = `<strong>${choice.text}</strong><div class="tooltip">${choice.tip}</div>`;
+          div.onclick = () => {
+            choose(choice.result);
+            Array.from(document.getElementsByClassName("choice")).forEach(
+              (el) => {
+                el.classList.remove("selected");
+              }
+            );
+            div.classList.add("selected");
+          };
+          choicesDiv.appendChild(div);
+        });
+
+        document.getElementById(
+          "meter"
+        ).textContent = `Moral Integrity: ${morality}% (approximate)`;
+      }
+
+      const playerChoices = [];
+
+      let constChoice = "";
+
+      function choose(result) {
+        constChoice = result;
+      }
+
+      async function nextRound() {
+        if (document.getElementsByClassName("selected").length == 0) {
+          return;
+        }
+
+        Array.from(document.getElementsByTagName("button")).forEach((bt) => {
+          bt.disabled = true;
+        });
+        Array.from(document.getElementsByClassName("interactive")).forEach((i) => {
+          i.classList.add("disabled")
+        });
+
+        playLeverGif();
+        morality += Math.floor(Math.random() * 11 - 5);
+        morality = Math.max(0, Math.min(100, morality));
+        const out = document.getElementById("outcome");
+        out.textContent = constChoice;
+        out.style.display = "block";
+
+        const buttons = Array.from(document.querySelectorAll(".choice"));
+        const index = buttons.findIndex((button) =>
+          button.classList.contains("selected")
+        );
+
+        buttons.forEach((el) => {
+          el.classList.remove("selected");
+        });
+
+        sendVote(round, index + 1);
+        try {
+          const data = await getTotalsJSONP(round);
+          const otherResults = document.getElementById("outcome2");
+          otherResults.innerText = `On the brightside, at least ${String(Math.round(((index === 0 ? data.colA : data.colB)/(data.colA + data.colB))*100)).padStart(2, "0")}% of players agreed with you.\nTotal number of votes: ${data.colA + data.colB}`;
+          otherResults.style.display = "block";
+        } finally {
+          Array.from(document.getElementsByTagName("button")).forEach((bt) => {
+            bt.disabled = false;
+          });
+          Array.from(document.getElementsByClassName("interactive")).forEach((i) => {
+          i.classList.remove("disabled")
+        });
+        }
+        round++;
+
+        if (round !== scenarios.length) {
+          renderScenario();
+        } else {
+          document.getElementById("continueBtn").style.display = "none";
+        }
+      }
+
+      function resetGame() {
+        round = 0;
+        morality = 50;
+        document.getElementById("continueBtn").style.display = "block";
+        document.getElementById("outcome").display = "none";
+        renderScenario();
+      }
+
+      const animWrap = document.getElementById("animWrap");
+      const leverStill = document.getElementById("leverStill");
+
+      function playLeverGif() {
+        leverGif.style.display = "block";
+        leverStill.style.display = "none";
+
+        const buttons = Array.from(document.querySelectorAll(".choice"));
+        const index = buttons.findIndex((button) =>
+          button.classList.contains("selected")
+        );
+        const r = scenarios[round];
+        document.getElementById("noiseSub").innerText = r.choices[index].noise;
+
+        subtitleSFX("ka-CHUNK", 1500);
+        // Restart GIF (cache-bust)
+        const base = leverGif.dataset.base || leverGif.src.split("?")[0];
+        leverGif.dataset.base = base;
+        leverGif.src = base + "?t=" + Date.now();
+
+        // Hide after the animation finishes (adjust ms to match your GIF length)
+        setTimeout(() => {
+          leverGif.style.display = "none";
+          leverStill.style.display = "block";
+        }, 3000); // <- change this to your gif duration
+      }
+
+      const sfxSub = document.getElementById("sfxSub");
+      let subTimer;
+
+      function subtitleSFX(text, ms = 1000) {
+        clearTimeout(subTimer);
+        sfxSub.textContent = `*${text}*`;
+        subTimer = setTimeout(() => (sfxSub.textContent = ""), ms);
+      }
+
+      const shareBtn = document.getElementById("shareBtn");
+      const shareResult = document.getElementById("shareResult");
+
+      shareBtn.onclick = async () => {
+        const text = generateShareText(0, round); // example ending
+        try {
+          await navigator.clipboard.writeText(text);
+          shareResult.textContent =
+            "📋 Result copied. The internet will judge you.";
+        } catch {
+          shareResult.textContent = "⚠️ Copy failed. The lever jammed.";
+        }
+      };
+
+      function generateEmojiGrid() {
+        return playerChoices
+          .map((choice) => {
+            switch (choice) {
+              case "left":
+                return "⬛";
+              case "right":
+                return "⬜";
+              case "refuse":
+                return "🟥";
+              default:
+                return "⬛";
+            }
+          })
+          .join("");
+      }
+
+      function formatGrid(grid, rowSize = 3) {
+        let output = "";
+        for (let i = 0; i < grid.length; i += rowSize) {
+          output += grid.slice(i, i + rowSize) + "\n";
+        }
+        return output.trim();
+      }
+
+      function generateShareText(endingNumber, totalEndings) {
+        return `\"${document.getElementById("outcome").innerText}\"
+
+The public hates me. I picked every wrong choice in this Trolley game.
+
+${endingNumber}/${totalEndings}
+
+🛤️ I pulled the lever in Absurd Trolley- HiVC Edition.`;
+      }
+
+      const VOTE_URL =
+        "https://script.google.com/macros/s/AKfycbyV9Y8uXHQ7CBODGrIV7DYSd7g5wGemA-5YOtlDlMnk1I5YPxmo9RU5IWa9UiyRBFmeuQ/exec";
+
+      async function sendVote(q, a) {
+        // record (no CORS)
+        new Image().src = `${VOTE_URL}?q=${encodeURIComponent(
+          q
+        )}&a=${encodeURIComponent(a)}&t=${Date.now()}`;
+      }
+      //   async function sendVote(q, a){
+      //   // record vote
+      //   await fetch(VOTE_URL, {
+      //     method: "POST",
+      //     headers: { "Content-Type":"application/json" },
+      //     body: JSON.stringify({ q: q, a: a })
+      //   });
+
+      //   // fetch totals
+      //   const res = await fetch(VOTE_URL);
+      //   const data = await res.json();
+      //   return data.totals; // {left: 3, right: 7, refuse: 1}
+      // }
+
+      function getTotalsJSONP(q) {
+        return new Promise((resolve) => {
+          const cb = "cb_" + Math.random().toString(36).slice(2);
+          window[cb] = (data) => {
+            resolve(data.totals);
+            delete window[cb];
+            script.remove();
+          };
+          const script = document.createElement("script");
+          script.src = `${VOTE_URL}?q=${encodeURIComponent(
+            q
+          )}&callback=${cb}&t=${Date.now()}`;
+          document.body.appendChild(script);
+        });
+      }
+
+      document
+        .getElementById("continueBtn")
+        .addEventListener("click", async () => {
+          await nextRound();
+        });
+
+      function renderResults(totals) {
+        const total = Object.values(totals).reduce((a, b) => a + b, 0) || 1;
+        const leftPct = Math.round(((totals.left || 0) / total) * 100);
+        const rightPct = Math.round(((totals.right || 0) / total) * 100);
+
+        document.getElementById(
+          "results"
+        ).innerText = `Votes: ${total}\nLeft: ${
+          totals.left || 0
+        } (${leftPct}%)  |  Right: ${totals.right || 0} (${rightPct}%)`;
+      }
+
+      renderScenario();
+    </script>
+  </body>
+</html>
