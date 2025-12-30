@@ -341,6 +341,7 @@
           return;
         }
 
+        //htmlelements are is stupid
         Array.from(document.getElementsByTagName("button")).forEach((bt) => {
           bt.disabled = true;
         });
@@ -410,16 +411,15 @@
         document.getElementById("noiseSub").innerText = r.choices[index].noise;
 
         subtitleSFX("ka-CHUNK", 1500);
-        // Restart GIF (cache-bust)
+        // restart
         const base = leverGif.dataset.base || leverGif.src.split("?")[0];
         leverGif.dataset.base = base;
         leverGif.src = base + "?t=" + Date.now();
 
-        // Hide after the animation finishes (adjust ms to match your GIF length)
         setTimeout(() => {
           leverGif.style.display = "none";
           leverStill.style.display = "block";
-        }, 3000); // <- change this to your gif duration
+        }, 3000);
       }
 
       const sfxSub = document.getElementById("sfxSub");
@@ -436,8 +436,14 @@
 
       shareBtn.onclick = async () => {
         const text = generateShareText(0, round); // example ending
+        const html = generateShareHtml(0, round); // example ending
         try {
-          await navigator.clipboard.writeText(text);
+          const item = new ClipboardItem({
+            "text/html": new Blob([html], { type: "text/html" }),
+            "text/plain": new Blob([text], { type: "text/plain" }),
+          });
+
+          await navigator.clipboard.write([item]);
           shareResult.textContent =
             "📋 Result copied. The internet will judge you.";
         } catch {
@@ -445,29 +451,14 @@
         }
       };
 
-      function generateEmojiGrid() {
-        return playerChoices
-          .map((choice) => {
-            switch (choice) {
-              case "left":
-                return "⬛";
-              case "right":
-                return "⬜";
-              case "refuse":
-                return "🟥";
-              default:
-                return "⬛";
-            }
-          })
-          .join("");
-      }
+            function generateShareHtml(endingNumber, totalEndings) {
+        return `\"${document.getElementById("outcome").innerText}\"
 
-      function formatGrid(grid, rowSize = 3) {
-        let output = "";
-        for (let i = 0; i < grid.length; i += rowSize) {
-          output += grid.slice(i, i + rowSize) + "\n";
-        }
-        return output.trim();
+The public hates me. I picked every wrong choice in this Trolley game.
+
+${endingNumber}/${totalEndings}
+
+🛤️ I pulled the lever in <a href=\"https://jonathanihm.github.io/hivc-trolley\">Absurd Trolley- HiVC Edition.</a>`;
       }
 
       function generateShareText(endingNumber, totalEndings) {
@@ -477,31 +468,20 @@ The public hates me. I picked every wrong choice in this Trolley game.
 
 ${endingNumber}/${totalEndings}
 
-🛤️ I pulled the lever in Absurd Trolley- HiVC Edition.`;
+🛤️ I pulled the lever in Absurd Trolley- HiVC Edition.
+https://jonathanihm.github.io/hivc-trolley
+`;
       }
 
       const VOTE_URL =
         "https://script.google.com/macros/s/AKfycbyV9Y8uXHQ7CBODGrIV7DYSd7g5wGemA-5YOtlDlMnk1I5YPxmo9RU5IWa9UiyRBFmeuQ/exec";
 
       async function sendVote(q, a) {
-        // record (no CORS)
+        // hax
         new Image().src = `${VOTE_URL}?q=${encodeURIComponent(
           q
         )}&a=${encodeURIComponent(a)}&t=${Date.now()}`;
       }
-      //   async function sendVote(q, a){
-      //   // record vote
-      //   await fetch(VOTE_URL, {
-      //     method: "POST",
-      //     headers: { "Content-Type":"application/json" },
-      //     body: JSON.stringify({ q: q, a: a })
-      //   });
-
-      //   // fetch totals
-      //   const res = await fetch(VOTE_URL);
-      //   const data = await res.json();
-      //   return data.totals; // {left: 3, right: 7, refuse: 1}
-      // }
 
       function getTotalsJSONP(q) {
         return new Promise((resolve) => {
@@ -524,18 +504,6 @@ ${endingNumber}/${totalEndings}
         .addEventListener("click", async () => {
           await nextRound();
         });
-
-      function renderResults(totals) {
-        const total = Object.values(totals).reduce((a, b) => a + b, 0) || 1;
-        const leftPct = Math.round(((totals.left || 0) / total) * 100);
-        const rightPct = Math.round(((totals.right || 0) / total) * 100);
-
-        document.getElementById(
-          "results"
-        ).innerText = `Votes: ${total}\nLeft: ${
-          totals.left || 0
-        } (${leftPct}%)  |  Right: ${totals.right || 0} (${rightPct}%)`;
-      }
 
       renderScenario();
     </script>
